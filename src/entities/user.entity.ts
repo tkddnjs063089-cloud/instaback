@@ -16,7 +16,7 @@ export class User {
   @Column()
   password: string;
 
-  @Column({ unique: true, length: 10 })
+  @Column({ unique: true, length: 20 })
   nickname: string;
 
   @Column({ name: 'profile_image', nullable: true })
