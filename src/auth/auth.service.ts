@@ -4,6 +4,7 @@ import {
   ConflictException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { supabase } from '../supabase';
@@ -17,6 +18,7 @@ export class AuthService {
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    private jwtService: JwtService,
   ) {}
 
   // 회원가입
@@ -113,7 +115,7 @@ export class AuthService {
   // 로그인
   async login(
     loginDto: LoginDto,
-  ): Promise<{ message: string; user: Partial<User> }> {
+  ): Promise<{ message: string; accessToken: string; user: Partial<User> }> {
     const { username, password } = loginDto;
 
     // 사용자 찾기
@@ -136,11 +138,16 @@ export class AuthService {
       );
     }
 
+    // JWT 토큰 생성
+    const payload = { sub: user.id, username: user.username };
+    const accessToken = this.jwtService.sign(payload);
+
     // 비밀번호 제외하고 반환
     const { password: _, ...userWithoutPassword } = user;
 
     return {
       message: '로그인 성공',
+      accessToken,
       user: userWithoutPassword,
     };
   }
@@ -168,5 +175,19 @@ export class AuthService {
       available: true,
       message: '사용 가능한 아이디입니다',
     };
+  }
+
+  // 현재 로그인된 유저 정보 가져오기
+  async getProfile(userId: string): Promise<Partial<User>> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('유저를 찾을 수 없습니다');
+    }
+
+    const { password: _, ...userWithoutPassword } = user;
+    return userWithoutPassword;
   }
 }
