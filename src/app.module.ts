@@ -15,11 +15,8 @@ import { User } from './entities/user.entity';
       type: 'postgres',
       url: process.env.DATABASE_URL,
       entities: [User],
-      synchronize: false, // 개발용, 프로덕션에서는 false로
-      ssl:
-        process.env.NODE_ENV === 'production'
-          ? { rejectUnauthorized: false }
-          : false,
+      synchronize: false,
+      ssl: false, // Railway 내부 연결에서는 SSL 불필요
     }),
     AuthModule,
   ],
