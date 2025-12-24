@@ -35,8 +35,8 @@ export class SignupDto {
   @IsNotEmpty({ message: '닉네임을 입력해주세요' })
   @MinLength(2, { message: '닉네임은 2자 이상이어야 합니다' })
   @MaxLength(20, { message: '닉네임은 20자 이하여야 합니다' })
-  @Matches(/^[a-zA-Z0-9!@#$%^&*_-]+$/, {
-    message: '닉네임은 영문, 숫자, 특수문자(!@#$%^&*_-)만 사용 가능합니다',
+  @Matches(/^(?=.*[a-zA-Z])[a-zA-Z0-9!@#$%^&*_-]+$/, {
+    message: '닉네임은 영문 필수, 숫자/특수문자(!@#$%^&*_-)는 선택입니다',
   })
   nickname: string;
 }
