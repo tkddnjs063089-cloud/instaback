@@ -232,7 +232,7 @@ export class AuthService {
 
   // 로그아웃 (Refresh Token 삭제)
   async logout(userId: string): Promise<{ message: string }> {
-    await this.userRepository.update(userId, { refreshToken: null });
+    await this.userRepository.update(userId, { refreshToken: undefined });
     return { message: '로그아웃 성공' };
   }
 

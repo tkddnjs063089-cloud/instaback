@@ -23,7 +23,7 @@ export class User {
   profileImage: string;
 
   @Column({ name: 'refresh_token', nullable: true, type: 'text' })
-  refreshToken: string; // 해시된 refresh token 저장
+  refreshToken?: string; // 해시된 refresh token 저장 (nullable)
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
