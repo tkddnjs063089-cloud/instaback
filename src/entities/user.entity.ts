@@ -22,6 +22,9 @@ export class User {
   @Column({ name: 'profile_image', nullable: true })
   profileImage: string;
 
+  @Column({ nullable: true, type: 'text' })
+  bio?: string; // 자기소개
+
   @Column({ name: 'refresh_token', nullable: true, type: 'text' })
   refreshToken?: string; // 해시된 refresh token 저장 (nullable)
 

@@ -80,4 +80,11 @@ export class AuthController {
   async logout(@Request() req) {
     return this.authService.logout(req.user.id);
   }
+
+  // 유저의 게시물 목록 (Access Token 필요)
+  @UseGuards(JwtAuthGuard)
+  @Get('posts')
+  async getUserPosts(@Request() req) {
+    return this.authService.getUserPosts(req.user.id);
+  }
 }

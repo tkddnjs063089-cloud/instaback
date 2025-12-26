@@ -8,11 +8,15 @@ import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
 import { JwtRefreshStrategy } from './jwt-refresh.strategy';
 import { User } from '../entities/user.entity';
+import { Post } from '../entities/post.entity';
+import { Follow } from '../entities/follow.entity';
+import { Like } from '../entities/like.entity';
+import { Comment } from '../entities/comment.entity';
 
 @Module({
   imports: [
     ConfigModule,
-    TypeOrmModule.forFeature([User]),
+    TypeOrmModule.forFeature([User, Post, Follow, Like, Comment]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],

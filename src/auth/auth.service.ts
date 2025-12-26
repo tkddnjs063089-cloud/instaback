@@ -13,6 +13,10 @@ import { supabase } from '../supabase';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import { User } from '../entities/user.entity';
+import { Post } from '../entities/post.entity';
+import { Follow } from '../entities/follow.entity';
+import { Like } from '../entities/like.entity';
+import { Comment } from '../entities/comment.entity';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -20,6 +24,14 @@ export class AuthService {
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    @InjectRepository(Post)
+    private postRepository: Repository<Post>,
+    @InjectRepository(Follow)
+    private followRepository: Repository<Follow>,
+    @InjectRepository(Like)
+    private likeRepository: Repository<Like>,
+    @InjectRepository(Comment)
+    private commentRepository: Repository<Comment>,
     private jwtService: JwtService,
     private configService: ConfigService,
   ) {}
@@ -262,7 +274,7 @@ export class AuthService {
   }
 
   // 현재 로그인된 유저 정보 가져오기
-  async getProfile(userId: string): Promise<Partial<User>> {
+  async getProfile(userId: string) {
     const user = await this.userRepository.findOne({
       where: { id: userId },
     });
@@ -271,7 +283,61 @@ export class AuthService {
       throw new UnauthorizedException('유저를 찾을 수 없습니다');
     }
 
+    // 게시물 수
+    const postsCount = await this.postRepository.count({
+      where: { userId: userId },
+    });
+
+    // 팔로워 수 (나를 팔로우하는 사람)
+    const followersCount = await this.followRepository.count({
+      where: { followingId: userId },
+    });
+
+    // 팔로잉 수 (내가 팔로우하는 사람)
+    const followingCount = await this.followRepository.count({
+      where: { followerId: userId },
+    });
+
     const { password: _, refreshToken: __, ...userWithoutSensitive } = user;
-    return userWithoutSensitive;
+
+    return {
+      ...userWithoutSensitive,
+      stats: {
+        posts: postsCount,
+        followers: followersCount,
+        following: followingCount,
+      },
+    };
+  }
+
+  // 유저의 게시물 목록 가져오기 (좋아요/댓글 수 포함)
+  async getUserPosts(userId: string) {
+    const posts = await this.postRepository.find({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+    });
+
+    // 각 게시물에 좋아요/댓글 수 추가
+    const postsWithCounts = await Promise.all(
+      posts.map(async (post) => {
+        const likesCount = await this.likeRepository.count({
+          where: { postId: post.id },
+        });
+        const commentsCount = await this.commentRepository.count({
+          where: { postId: post.id },
+        });
+
+        return {
+          id: post.id,
+          imageUrl: post.imageUrl,
+          caption: post.caption,
+          createdAt: post.createdAt,
+          likesCount,
+          commentsCount,
+        };
+      }),
+    );
+
+    return postsWithCounts;
   }
 }

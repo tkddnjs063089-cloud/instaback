@@ -5,6 +5,12 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { User } from './entities/user.entity';
+import { Post } from './entities/post.entity';
+import { Follow } from './entities/follow.entity';
+import { Highlight } from './entities/highlight.entity';
+import { HighlightPost } from './entities/highlight-post.entity';
+import { Like } from './entities/like.entity';
+import { Comment } from './entities/comment.entity';
 
 @Module({
   imports: [
@@ -14,7 +20,7 @@ import { User } from './entities/user.entity';
     TypeOrmModule.forRoot({
       type: 'postgres',
       url: process.env.DATABASE_URL,
-      entities: [User],
+      entities: [User, Post, Follow, Highlight, HighlightPost, Like, Comment],
       synchronize: false,
       ssl: false, // Railway 내부 연결에서는 SSL 불필요
     }),
