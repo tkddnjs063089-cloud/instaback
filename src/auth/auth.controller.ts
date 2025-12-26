@@ -35,10 +35,10 @@ export class AuthController {
         fileSize: 5 * 1024 * 1024, // 5MB 제한
       },
       fileFilter: (req, file, callback) => {
-        if (!file.mimetype.match(/^image\/(jpeg|jpg|png|gif|webp)$/)) {
+        if (!file.mimetype.match(/^image\/(jpeg|jpg|png|gif|webp|avif)$/)) {
           return callback(
             new BadRequestException(
-              '이미지 파일만 업로드 가능합니다 (jpeg, jpg, png, gif, webp)',
+              '이미지 파일만 업로드 가능합니다 (jpeg, jpg, png, gif, webp, avif)',
             ),
             false,
           );
@@ -82,10 +82,10 @@ export class AuthController {
         fileSize: 5 * 1024 * 1024, // 5MB 제한
       },
       fileFilter: (req, file, callback) => {
-        if (!file.mimetype.match(/^image\/(jpeg|jpg|png|gif|webp)$/)) {
+        if (!file.mimetype.match(/^image\/(jpeg|jpg|png|gif|webp|avif)$/)) {
           return callback(
             new BadRequestException(
-              '이미지 파일만 업로드 가능합니다 (jpeg, jpg, png, gif, webp)',
+              '이미지 파일만 업로드 가능합니다 (jpeg, jpg, png, gif, webp, avif)',
             ),
             false,
           );
@@ -132,10 +132,10 @@ export class AuthController {
         fileSize: 10 * 1024 * 1024, // 10MB 제한
       },
       fileFilter: (req, file, callback) => {
-        if (!file.mimetype.match(/^image\/(jpeg|jpg|png|gif|webp)$/)) {
+        if (!file.mimetype.match(/^image\/(jpeg|jpg|png|gif|webp|avif)$/)) {
           return callback(
             new BadRequestException(
-              '이미지 파일만 업로드 가능합니다 (jpeg, jpg, png, gif, webp)',
+              '이미지 파일만 업로드 가능합니다 (jpeg, jpg, png, gif, webp, avif)',
             ),
             false,
           );

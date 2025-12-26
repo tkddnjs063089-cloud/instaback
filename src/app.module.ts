@@ -11,6 +11,7 @@ import { Highlight } from './entities/highlight.entity';
 import { HighlightPost } from './entities/highlight-post.entity';
 import { Like } from './entities/like.entity';
 import { Comment } from './entities/comment.entity';
+import { Reply } from './entities/reply.entity';
 
 @Module({
   imports: [
@@ -20,7 +21,16 @@ import { Comment } from './entities/comment.entity';
     TypeOrmModule.forRoot({
       type: 'postgres',
       url: process.env.DATABASE_URL,
-      entities: [User, Post, Follow, Highlight, HighlightPost, Like, Comment],
+      entities: [
+        User,
+        Post,
+        Follow,
+        Highlight,
+        HighlightPost,
+        Like,
+        Comment,
+        Reply,
+      ],
       synchronize: false,
       ssl: false, // Railway 내부 연결에서는 SSL 불필요
     }),
