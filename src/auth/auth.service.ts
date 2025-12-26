@@ -45,14 +45,14 @@ export class AuthService {
 
     const accessToken = this.jwtService.sign(payload, {
       secret: this.configService.get<string>('JWT_SECRET') || 'your-secret-key',
-      expiresIn: '15m', // Access Token: 15분
+      expiresIn: '1m', // Access Token: 1분
     });
 
     const refreshToken = this.jwtService.sign(payload, {
       secret:
         this.configService.get<string>('JWT_REFRESH_SECRET') ||
         'your-refresh-secret-key',
-      expiresIn: '7d', // Refresh Token: 7일
+      expiresIn: '3m', // Refresh Token: 3분
     });
 
     return { accessToken, refreshToken };
