@@ -19,6 +19,7 @@ import { LoginDto } from './dto/login.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { CreatePostDto } from './dto/create-post.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
+import { CreateReplyDto } from './dto/create-reply.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { JwtRefreshGuard } from './jwt-refresh.guard';
 
@@ -174,5 +175,16 @@ export class AuthController {
     @Body() createCommentDto: CreateCommentDto,
   ) {
     return this.authService.addComment(postId, req.user.id, createCommentDto);
+  }
+
+  // 대댓글 추가 (Access Token 필요)
+  @UseGuards(JwtAuthGuard)
+  @Post('comments/:commentId/replies')
+  async addReply(
+    @Request() req,
+    @Param('commentId') commentId: string,
+    @Body() createReplyDto: CreateReplyDto,
+  ) {
+    return this.authService.addReply(commentId, req.user.id, createReplyDto);
   }
 }

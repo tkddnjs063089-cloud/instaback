@@ -1,0 +1,36 @@
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
+import { User } from './user.entity';
+import { Comment } from './comment.entity';
+
+@Entity('replies')
+export class Reply {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column({ type: 'text' })
+  seccomment: string;
+
+  @Column({ name: 'comment_id' })
+  commentId: string;
+
+  @Column({ name: 'user_id' })
+  userId: string;
+
+  @ManyToOne(() => Comment, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'comment_id' })
+  comment: Comment;
+
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'user_id' })
+  user: User;
+
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt: Date;
+}

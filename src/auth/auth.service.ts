@@ -15,11 +15,13 @@ import { LoginDto } from './dto/login.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { CreatePostDto } from './dto/create-post.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
+import { CreateReplyDto } from './dto/create-reply.dto';
 import { User } from '../entities/user.entity';
 import { Post } from '../entities/post.entity';
 import { Follow } from '../entities/follow.entity';
 import { Like } from '../entities/like.entity';
 import { Comment } from '../entities/comment.entity';
+import { Reply } from '../entities/reply.entity';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -35,6 +37,8 @@ export class AuthService {
     private likeRepository: Repository<Like>,
     @InjectRepository(Comment)
     private commentRepository: Repository<Comment>,
+    @InjectRepository(Reply)
+    private replyRepository: Repository<Reply>,
     private jwtService: JwtService,
     private configService: ConfigService,
   ) {}
@@ -517,12 +521,39 @@ export class AuthService {
       order: { createdAt: 'ASC' },
     });
 
-    // 댓글에 유저 정보 추가
+    // 댓글에 유저 정보 및 대댓글 추가
     const commentsWithUser = await Promise.all(
       comments.map(async (comment) => {
         const commentUser = await this.userRepository.findOne({
           where: { id: comment.userId },
         });
+
+        // 대댓글 목록 조회
+        const replies = await this.replyRepository.find({
+          where: { commentId: comment.id },
+          order: { createdAt: 'ASC' },
+        });
+
+        // 대댓글에 유저 정보 추가
+        const repliesWithUser = await Promise.all(
+          replies.map(async (reply) => {
+            const replyUser = await this.userRepository.findOne({
+              where: { id: reply.userId },
+            });
+            return {
+              id: reply.id,
+              seccomment: reply.seccomment,
+              createdAt: reply.createdAt,
+              user: {
+                id: replyUser?.id,
+                username: replyUser?.username,
+                nickname: replyUser?.nickname,
+                profileImage: replyUser?.profileImage,
+              },
+            };
+          }),
+        );
+
         return {
           id: comment.id,
           content: comment.content,
@@ -533,6 +564,7 @@ export class AuthService {
             nickname: commentUser?.nickname,
             profileImage: commentUser?.profileImage,
           },
+          replies: repliesWithUser,
         };
       }),
     );
@@ -624,6 +656,47 @@ export class AuthService {
         username: commentUser?.username,
         nickname: commentUser?.nickname,
         profileImage: commentUser?.profileImage,
+      },
+      replies: [],
+    };
+  }
+
+  // 대댓글 추가
+  async addReply(
+    commentId: string,
+    userId: string,
+    createReplyDto: CreateReplyDto,
+  ) {
+    const comment = await this.commentRepository.findOne({
+      where: { id: commentId },
+    });
+
+    if (!comment) {
+      throw new BadRequestException('댓글을 찾을 수 없습니다');
+    }
+
+    const newReply = this.replyRepository.create({
+      commentId,
+      userId,
+      seccomment: createReplyDto.seccomment,
+    });
+
+    const savedReply = await this.replyRepository.save(newReply);
+
+    // 대댓글 작성자 정보
+    const replyUser = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+
+    return {
+      id: savedReply.id,
+      seccomment: savedReply.seccomment,
+      createdAt: savedReply.createdAt,
+      user: {
+        id: replyUser?.id,
+        username: replyUser?.username,
+        nickname: replyUser?.nickname,
+        profileImage: replyUser?.profileImage,
       },
     };
   }

@@ -12,11 +12,12 @@ import { Post } from '../entities/post.entity';
 import { Follow } from '../entities/follow.entity';
 import { Like } from '../entities/like.entity';
 import { Comment } from '../entities/comment.entity';
+import { Reply } from '../entities/reply.entity';
 
 @Module({
   imports: [
     ConfigModule,
-    TypeOrmModule.forFeature([User, Post, Follow, Like, Comment]),
+    TypeOrmModule.forFeature([User, Post, Follow, Like, Comment, Reply]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
