@@ -12,6 +12,8 @@ import { Repository } from 'typeorm';
 import { supabase } from '../supabase';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { CreatePostDto } from './dto/create-post.dto';
 import { User } from '../entities/user.entity';
 import { Post } from '../entities/post.entity';
 import { Follow } from '../entities/follow.entity';
@@ -339,5 +341,114 @@ export class AuthService {
     );
 
     return postsWithCounts;
+  }
+
+  // 프로필 업데이트
+  async updateProfile(userId: string, updateProfileDto: UpdateProfileDto) {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('유저를 찾을 수 없습니다');
+    }
+
+    // 닉네임 변경 시 중복 체크
+    if (
+      updateProfileDto.nickname &&
+      updateProfileDto.nickname !== user.nickname
+    ) {
+      const existingNickname = await this.userRepository.findOne({
+        where: { nickname: updateProfileDto.nickname },
+      });
+
+      if (existingNickname) {
+        throw new ConflictException('이미 사용 중인 닉네임입니다');
+      }
+    }
+
+    // 업데이트
+    await this.userRepository.update(userId, {
+      ...(updateProfileDto.nickname && { nickname: updateProfileDto.nickname }),
+      ...(updateProfileDto.bio !== undefined && { bio: updateProfileDto.bio }),
+    });
+
+    // 업데이트된 유저 정보 반환
+    const updatedUser = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!updatedUser) {
+      throw new UnauthorizedException('유저를 찾을 수 없습니다');
+    }
+
+    const {
+      password: _,
+      refreshToken: __,
+      ...userWithoutSensitive
+    } = updatedUser;
+
+    return {
+      message: '프로필이 업데이트되었습니다',
+      user: userWithoutSensitive,
+    };
+  }
+
+  // 게시물 작성
+  async createPost(
+    userId: string,
+    createPostDto: CreatePostDto,
+    file: Express.Multer.File,
+  ) {
+    // 파일 검증
+    if (!file) {
+      throw new BadRequestException('이미지를 업로드해주세요');
+    }
+
+    // 이미지 업로드 (Supabase Storage)
+    const fileExt = file.originalname.split('.').pop();
+    const fileName = `${userId}_${Date.now()}.${fileExt}`;
+    const filePath = `posts/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('images')
+      .upload(filePath, file.buffer, {
+        contentType: file.mimetype,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      throw new BadRequestException(
+        '이미지 업로드에 실패했습니다: ' + uploadError.message,
+      );
+    }
+
+    // 이미지 공개 URL 가져오기
+    const { data: urlData } = supabase.storage
+      .from('images')
+      .getPublicUrl(filePath);
+
+    const imageUrl = urlData.publicUrl;
+
+    // 게시물 저장
+    const newPost = this.postRepository.create({
+      imageUrl,
+      caption: createPostDto.caption || '',
+      userId,
+    });
+
+    const savedPost = await this.postRepository.save(newPost);
+
+    return {
+      message: '게시물이 작성되었습니다',
+      post: {
+        id: savedPost.id,
+        imageUrl: savedPost.imageUrl,
+        caption: savedPost.caption,
+        createdAt: savedPost.createdAt,
+        likesCount: 0,
+        commentsCount: 0,
+      },
+    };
   }
 }

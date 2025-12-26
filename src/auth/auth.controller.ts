@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Body,
   Query,
   UseInterceptors,
@@ -14,6 +15,8 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthService } from './auth.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { CreatePostDto } from './dto/create-post.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { JwtRefreshGuard } from './jwt-refresh.guard';
 
@@ -67,6 +70,16 @@ export class AuthController {
     return this.authService.getProfile(req.user.id);
   }
 
+  // 프로필 업데이트 (Access Token 필요)
+  @UseGuards(JwtAuthGuard)
+  @Patch('profile')
+  async updateProfile(
+    @Request() req,
+    @Body() updateProfileDto: UpdateProfileDto,
+  ) {
+    return this.authService.updateProfile(req.user.id, updateProfileDto);
+  }
+
   // Access Token 재발급 (Refresh Token 필요)
   @UseGuards(JwtRefreshGuard)
   @Post('refresh')
@@ -86,5 +99,34 @@ export class AuthController {
   @Get('posts')
   async getUserPosts(@Request() req) {
     return this.authService.getUserPosts(req.user.id);
+  }
+
+  // 게시물 작성 (Access Token 필요)
+  @UseGuards(JwtAuthGuard)
+  @Post('posts')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB 제한
+      },
+      fileFilter: (req, file, callback) => {
+        if (!file.mimetype.match(/^image\/(jpeg|jpg|png|gif|webp)$/)) {
+          return callback(
+            new BadRequestException(
+              '이미지 파일만 업로드 가능합니다 (jpeg, jpg, png, gif, webp)',
+            ),
+            false,
+          );
+        }
+        callback(null, true);
+      },
+    }),
+  )
+  async createPost(
+    @Request() req,
+    @UploadedFile() file: Express.Multer.File,
+    @Body() createPostDto: CreatePostDto,
+  ) {
+    return this.authService.createPost(req.user.id, createPostDto, file);
   }
 }
