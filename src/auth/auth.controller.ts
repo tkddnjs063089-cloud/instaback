@@ -15,6 +15,7 @@ import { AuthService } from './auth.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { JwtRefreshGuard } from './jwt-refresh.guard';
 
 @Controller()
 export class AuthController {
@@ -59,10 +60,24 @@ export class AuthController {
     return this.authService.checkId(username);
   }
 
-  // 현재 로그인된 유저 정보 (JWT 토큰 필요)
+  // 현재 로그인된 유저 정보 (Access Token 필요)
   @UseGuards(JwtAuthGuard)
   @Get('profile')
   async getProfile(@Request() req) {
     return this.authService.getProfile(req.user.id);
+  }
+
+  // Access Token 재발급 (Refresh Token 필요)
+  @UseGuards(JwtRefreshGuard)
+  @Post('refresh')
+  async refreshTokens(@Request() req) {
+    return this.authService.refreshTokens(req.user.id, req.user.refreshToken);
+  }
+
+  // 로그아웃 (Access Token 필요)
+  @UseGuards(JwtAuthGuard)
+  @Post('logout')
+  async logout(@Request() req) {
+    return this.authService.logout(req.user.id);
   }
 }

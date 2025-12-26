@@ -3,8 +3,10 @@ import {
   BadRequestException,
   ConflictException,
   UnauthorizedException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { supabase } from '../supabase';
@@ -19,7 +21,38 @@ export class AuthService {
     @InjectRepository(User)
     private userRepository: Repository<User>,
     private jwtService: JwtService,
+    private configService: ConfigService,
   ) {}
+
+  // 토큰 생성 헬퍼 함수
+  private generateTokens(userId: string, username: string) {
+    const payload = { sub: userId, username };
+
+    const accessToken = this.jwtService.sign(payload, {
+      secret: this.configService.get<string>('JWT_SECRET') || 'your-secret-key',
+      expiresIn: '15m', // Access Token: 15분
+    });
+
+    const refreshToken = this.jwtService.sign(payload, {
+      secret:
+        this.configService.get<string>('JWT_REFRESH_SECRET') ||
+        'your-refresh-secret-key',
+      expiresIn: '7d', // Refresh Token: 7일
+    });
+
+    return { accessToken, refreshToken };
+  }
+
+  // Refresh Token을 해시해서 DB에 저장
+  private async updateRefreshToken(
+    userId: string,
+    refreshToken: string,
+  ): Promise<void> {
+    const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
+    await this.userRepository.update(userId, {
+      refreshToken: hashedRefreshToken,
+    });
+  }
 
   // 회원가입
   async signup(
@@ -97,11 +130,15 @@ export class AuthService {
       const savedUser = await this.userRepository.save(newUser);
 
       // 비밀번호 제외하고 반환
-      const { password: _, ...userWithoutPassword } = savedUser;
+      const {
+        password: _,
+        refreshToken: __,
+        ...userWithoutSensitive
+      } = savedUser;
 
       return {
         message: '회원가입이 완료되었습니다',
-        user: userWithoutPassword,
+        user: userWithoutSensitive,
       };
     } catch (error) {
       // 이미지 업로드 롤백
@@ -113,9 +150,12 @@ export class AuthService {
   }
 
   // 로그인
-  async login(
-    loginDto: LoginDto,
-  ): Promise<{ message: string; accessToken: string; user: Partial<User> }> {
+  async login(loginDto: LoginDto): Promise<{
+    message: string;
+    accessToken: string;
+    refreshToken: string;
+    user: Partial<User>;
+  }> {
     const { username, password } = loginDto;
 
     // 사용자 찾기
@@ -138,18 +178,62 @@ export class AuthService {
       );
     }
 
-    // JWT 토큰 생성
-    const payload = { sub: user.id, username: user.username };
-    const accessToken = this.jwtService.sign(payload);
+    // Access Token + Refresh Token 생성
+    const { accessToken, refreshToken } = this.generateTokens(
+      user.id,
+      user.username,
+    );
 
-    // 비밀번호 제외하고 반환
-    const { password: _, ...userWithoutPassword } = user;
+    // Refresh Token 해시해서 DB에 저장
+    await this.updateRefreshToken(user.id, refreshToken);
+
+    // 민감한 정보 제외하고 반환
+    const { password: _, refreshToken: __, ...userWithoutSensitive } = user;
 
     return {
       message: '로그인 성공',
       accessToken,
-      user: userWithoutPassword,
+      refreshToken,
+      user: userWithoutSensitive,
     };
+  }
+
+  // Access Token 재발급 (Refresh Token 사용)
+  async refreshTokens(
+    userId: string,
+    refreshToken: string,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user || !user.refreshToken) {
+      throw new ForbiddenException('접근 권한이 없습니다');
+    }
+
+    // 저장된 해시와 비교
+    const refreshTokenMatches = await bcrypt.compare(
+      refreshToken,
+      user.refreshToken,
+    );
+
+    if (!refreshTokenMatches) {
+      throw new ForbiddenException('유효하지 않은 토큰입니다');
+    }
+
+    // 새 토큰 발급 (Refresh Token Rotation)
+    const tokens = this.generateTokens(user.id, user.username);
+
+    // 새 Refresh Token 저장
+    await this.updateRefreshToken(user.id, tokens.refreshToken);
+
+    return tokens;
+  }
+
+  // 로그아웃 (Refresh Token 삭제)
+  async logout(userId: string): Promise<{ message: string }> {
+    await this.userRepository.update(userId, { refreshToken: null });
+    return { message: '로그아웃 성공' };
   }
 
   // 아이디 중복 확인
@@ -187,7 +271,7 @@ export class AuthService {
       throw new UnauthorizedException('유저를 찾을 수 없습니다');
     }
 
-    const { password: _, ...userWithoutPassword } = user;
-    return userWithoutPassword;
+    const { password: _, refreshToken: __, ...userWithoutSensitive } = user;
+    return userWithoutSensitive;
   }
 }
