@@ -345,7 +345,11 @@ export class AuthService {
   }
 
   // 프로필 업데이트
-  async updateProfile(userId: string, updateProfileDto: UpdateProfileDto) {
+  async updateProfile(
+    userId: string,
+    updateProfileDto: UpdateProfileDto,
+    file?: Express.Multer.File,
+  ) {
     const user = await this.userRepository.findOne({
       where: { id: userId },
     });
@@ -368,10 +372,39 @@ export class AuthService {
       }
     }
 
+    let profileImageUrl: string | undefined;
+
+    // 프로필 이미지 업로드
+    if (file) {
+      const fileExt = file.originalname.split('.').pop();
+      const fileName = `${userId}_${Date.now()}.${fileExt}`;
+      const filePath = `profiles/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('images')
+        .upload(filePath, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false,
+        });
+
+      if (uploadError) {
+        throw new BadRequestException(
+          '이미지 업로드에 실패했습니다: ' + uploadError.message,
+        );
+      }
+
+      const { data: urlData } = supabase.storage
+        .from('images')
+        .getPublicUrl(filePath);
+
+      profileImageUrl = urlData.publicUrl;
+    }
+
     // 업데이트
     await this.userRepository.update(userId, {
       ...(updateProfileDto.nickname && { nickname: updateProfileDto.nickname }),
       ...(updateProfileDto.bio !== undefined && { bio: updateProfileDto.bio }),
+      ...(profileImageUrl && { profileImage: profileImageUrl }),
     });
 
     // 업데이트된 유저 정보 반환

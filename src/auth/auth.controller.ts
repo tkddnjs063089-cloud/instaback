@@ -75,11 +75,30 @@ export class AuthController {
   // 프로필 업데이트 (Access Token 필요)
   @UseGuards(JwtAuthGuard)
   @Patch('profile')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB 제한
+      },
+      fileFilter: (req, file, callback) => {
+        if (!file.mimetype.match(/^image\/(jpeg|jpg|png|gif|webp)$/)) {
+          return callback(
+            new BadRequestException(
+              '이미지 파일만 업로드 가능합니다 (jpeg, jpg, png, gif, webp)',
+            ),
+            false,
+          );
+        }
+        callback(null, true);
+      },
+    }),
+  )
   async updateProfile(
     @Request() req,
+    @UploadedFile() file: Express.Multer.File,
     @Body() updateProfileDto: UpdateProfileDto,
   ) {
-    return this.authService.updateProfile(req.user.id, updateProfileDto);
+    return this.authService.updateProfile(req.user.id, updateProfileDto, file);
   }
 
   // Access Token 재발급 (Refresh Token 필요)
