@@ -5,6 +5,7 @@ import {
   Patch,
   Body,
   Query,
+  Param,
   UseInterceptors,
   UploadedFile,
   BadRequestException,
@@ -17,6 +18,7 @@ import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { CreatePostDto } from './dto/create-post.dto';
+import { CreateCommentDto } from './dto/create-comment.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { JwtRefreshGuard } from './jwt-refresh.guard';
 
@@ -128,5 +130,30 @@ export class AuthController {
     @Body() createPostDto: CreatePostDto,
   ) {
     return this.authService.createPost(req.user.id, createPostDto, file);
+  }
+
+  // 게시물 상세 조회 (Access Token 필요)
+  @UseGuards(JwtAuthGuard)
+  @Get('posts/:postId')
+  async getPostById(@Request() req, @Param('postId') postId: string) {
+    return this.authService.getPostById(postId, req.user.id);
+  }
+
+  // 좋아요 토글 (Access Token 필요)
+  @UseGuards(JwtAuthGuard)
+  @Post('posts/:postId/like')
+  async toggleLike(@Request() req, @Param('postId') postId: string) {
+    return this.authService.toggleLike(postId, req.user.id);
+  }
+
+  // 댓글 추가 (Access Token 필요)
+  @UseGuards(JwtAuthGuard)
+  @Post('posts/:postId/comments')
+  async addComment(
+    @Request() req,
+    @Param('postId') postId: string,
+    @Body() createCommentDto: CreateCommentDto,
+  ) {
+    return this.authService.addComment(postId, req.user.id, createCommentDto);
   }
 }

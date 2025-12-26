@@ -14,6 +14,7 @@ import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { CreatePostDto } from './dto/create-post.dto';
+import { CreateCommentDto } from './dto/create-comment.dto';
 import { User } from '../entities/user.entity';
 import { Post } from '../entities/post.entity';
 import { Follow } from '../entities/follow.entity';
@@ -448,6 +449,148 @@ export class AuthService {
         createdAt: savedPost.createdAt,
         likesCount: 0,
         commentsCount: 0,
+      },
+    };
+  }
+
+  // 게시물 상세 조회
+  async getPostById(postId: string, userId: string) {
+    const post = await this.postRepository.findOne({
+      where: { id: postId },
+    });
+
+    if (!post) {
+      throw new BadRequestException('게시물을 찾을 수 없습니다');
+    }
+
+    // 게시물 작성자 정보
+    const postOwner = await this.userRepository.findOne({
+      where: { id: post.userId },
+    });
+
+    // 좋아요 수
+    const likesCount = await this.likeRepository.count({
+      where: { postId },
+    });
+
+    // 현재 유저가 좋아요 했는지 확인
+    const userLike = await this.likeRepository.findOne({
+      where: { postId, userId },
+    });
+
+    // 댓글 목록
+    const comments = await this.commentRepository.find({
+      where: { postId },
+      order: { createdAt: 'ASC' },
+    });
+
+    // 댓글에 유저 정보 추가
+    const commentsWithUser = await Promise.all(
+      comments.map(async (comment) => {
+        const commentUser = await this.userRepository.findOne({
+          where: { id: comment.userId },
+        });
+        return {
+          id: comment.id,
+          content: comment.content,
+          createdAt: comment.createdAt,
+          user: {
+            id: commentUser?.id,
+            username: commentUser?.username,
+            nickname: commentUser?.nickname,
+            profileImage: commentUser?.profileImage,
+          },
+        };
+      }),
+    );
+
+    return {
+      id: post.id,
+      imageUrl: post.imageUrl,
+      caption: post.caption,
+      createdAt: post.createdAt,
+      likesCount,
+      isLiked: !!userLike,
+      commentsCount: comments.length,
+      user: {
+        id: postOwner?.id,
+        username: postOwner?.username,
+        nickname: postOwner?.nickname,
+        profileImage: postOwner?.profileImage,
+      },
+      comments: commentsWithUser,
+    };
+  }
+
+  // 좋아요 토글
+  async toggleLike(postId: string, userId: string) {
+    const post = await this.postRepository.findOne({
+      where: { id: postId },
+    });
+
+    if (!post) {
+      throw new BadRequestException('게시물을 찾을 수 없습니다');
+    }
+
+    // 이미 좋아요 했는지 확인
+    const existingLike = await this.likeRepository.findOne({
+      where: { postId, userId },
+    });
+
+    if (existingLike) {
+      // 좋아요 취소
+      await this.likeRepository.remove(existingLike);
+      const likesCount = await this.likeRepository.count({
+        where: { postId },
+      });
+      return { isLiked: false, likesCount };
+    } else {
+      // 좋아요 추가
+      const newLike = this.likeRepository.create({ postId, userId });
+      await this.likeRepository.save(newLike);
+      const likesCount = await this.likeRepository.count({
+        where: { postId },
+      });
+      return { isLiked: true, likesCount };
+    }
+  }
+
+  // 댓글 추가
+  async addComment(
+    postId: string,
+    userId: string,
+    createCommentDto: CreateCommentDto,
+  ) {
+    const post = await this.postRepository.findOne({
+      where: { id: postId },
+    });
+
+    if (!post) {
+      throw new BadRequestException('게시물을 찾을 수 없습니다');
+    }
+
+    const newComment = this.commentRepository.create({
+      postId,
+      userId,
+      content: createCommentDto.content,
+    });
+
+    const savedComment = await this.commentRepository.save(newComment);
+
+    // 댓글 작성자 정보
+    const commentUser = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+
+    return {
+      id: savedComment.id,
+      content: savedComment.content,
+      createdAt: savedComment.createdAt,
+      user: {
+        id: commentUser?.id,
+        username: commentUser?.username,
+        nickname: commentUser?.nickname,
+        profileImage: commentUser?.profileImage,
       },
     };
   }
